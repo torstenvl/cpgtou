@@ -20,64 +20,36 @@
 |                                                                             |
 |                       CPGTOU –– Code Page to Unicode                        |
 |                                                                             |
-|        int32_t cpgtou(unsigned char cpt, cpg_t cpg, int32_t *extra)         |
+|           int32_t cpgtou(cpg_t cpg, uint16_t cpt, int32_t **mult)           |
 |                                                                             |
-|   USAGE:                                                                    |
 |                                                                             |
-|   The function returns the Unicode code point corresponding most closely    |
-|   to the code point cpt in code page cpg.  However, not all code page       |
-|   code points correspond to Unicode code points on a 1:1 basis.  The        |
-|   extra parameter allows multiple-return when cpt maps to two Unicode       |
-|   code points, and allows for carrying over information from one use of     |
-|   the function to the next when necessary (e.g., for double-byte            |
-|   sequences).                                                               |
+|   USAGE                                                                     |
+|   -----                                                                     |
+|   The function generally returns the Unicode code point corresponding most  |
+|   closely to the code point cpt in code page cpg.  However, since not all   |
+|   code points in all code pages map 1:1 to Unicode, we also allow for       |
+|   carry-over of high bytes (for double-byte encodings, e.g., Big5, GB2312,  |
+|   or ShiftJIS) and multiple return.                                         |
 |                                                                             |
-|   RETURN VALUE:                                                             |
-|                                                                             |
-|     - On successful conversion, the function returns the Unicode code       |
-|       point that corresponds (as close as possible) to the specified        |
-|       code point in the specified code page.  If two Unicode code points    |
-|       are required to encode the result, the second Unicode code point      |
-|       will be in the variable pointed-to by the extra parameter.            |
+|   RETURN VALUE                                                              |
+|   ------------                                                              |
+|     - On successful 1:1 lookup, the function returns the corresponding      |
+|       Unicode code point.                                                   |
 |                                                                             |
 |     - If the specified code point does not exist in the given code page,    |
 |       the function returns cpNONE (defined as -1).                          |
 |                                                                             |
 |     - If the specified code page is not yet supported, the function         |
-|       will return cpUNSUPPORTED (defined as -2).                            |
+|       will return cpUNSP (defined as -2).                                   |
 |                                                                             |
 |     - If the specified code point is the first half of a double-byte        |
-|       sequence in the given code page (e.g., in JIS-based code pages),      |
-|       then the function will return cpCALLAGAIN (defined as -3) with the    |
-|       first code point stored in the variable pointed-to by the extra       |
-|       parameter.  This allows sequential processing of first and second     |
-|       bytes without convoluted special-case processing.                     |
+|       sequence (e.g., in ShiftJIS-based code pages), the function will      |
+|       return cpCAGN (defined as -3) with the high byte stored in *hi.       |
+|       If the function encounters an invalid double-byte sequence, it will   |
+|       attempt error recovery by treating the second byte as a new first     |
+|       byte.                                                                 |
 |                                                                             |
-|     - If the specified code point is the second half of a double-byte       |
-|       sequence in the given code page (e.g., in JIS-based code pages),      |
-|       then the function will look to the extra parameter for the first      |
-|       half, and look up the appropriate Unicode code point for that         |
-|       double-byte sequence.  If necessary, the variable pointed-to by       |
-|       the extra parameter will be filled with a second Unicode code         |
-|       point, just as when converting a single code point to Unicode.        |
-|                                                                             |
-|       The function applies the following rules:                             |
-|                                                                             |
-|       -- If the code page allows for double-byte sequences and the extra    |
-|          parameter DOES NOT point to a valid first-byte value, then cpt     |
-|          will be treated normally (i.e., as a single-byte character or      |
-|          the first half of a double-byte character).  If cpt is not a       |
-|          valid single-byte or first-byte value, then cpNONE (defined as     |
-|          -1) will be returned.                                              | 
-|                                                                             |
-|       -- If the code page allows for double-byte sequences and the extra    |
-|          parameter DOES point to a valid first-byte value, the function     |
-|          will treat cpt as a second-byte value.  However, if cpt is not     |
-|          a valid second-byte value, then the extra parameter will be        |
-|          discarded and cpt will be treated normally (i.e., as a single-     |
-|          byte character or the first half of a double-byte character).      |
-|          If cpt is not a valid single-byte or first-byte value, then        |
-|          cpSQNCERROR (defined as -4) will be returned.                      |  
+|     -                                                                       |
 |                                                                             |
 \*===========================================================================*/
 
@@ -91,10 +63,11 @@
 
 #define cpNONE   -1      // No Unicode equivalent, possible invalid code point
 #define cpUNSP   -2      // Unsupported code page
-#define cpCAGN   -3      // Call again - first byte of a DBCS pair
-#define cpSQER   -4      // Sequence error - not a valid DBCS byte
-#define cpSTRN   -1      // Needs a full string to represent properly... WTF
+#define cpDBCS   -3      // Passed byte was first byte of DBCS pair
+#define cpMULT   -4      // Look to last argument for a 0L-terminated list
 
+#define cpHIBYTE(c) ((c & 0xFF00) >> 8)
+#define cpLOBYTE(c) (c & 0x00FF)
 
 typedef enum cpg_t {
     CPG_42    = 42,       // ❌ Windows Symbol
@@ -216,7 +189,7 @@ typedef enum cpg_t {
 } cpg_t;
 
 
-/*––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––*\
+/*--------------------------------------------------------------------------*\
 |                                                                            |
 |                            Implementation Notes                            |
 |                                                                            |
@@ -241,7 +214,7 @@ typedef enum cpg_t {
 | mapping of code page code points to Unicode, round-trip features will NOT  |
 | take precedence outside the ASCII range.                                   |
 |                                                                            |
-\*––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––––*/
+\*--------------------------------------------------------------------------*/
 
 static int32_t cpgtou(unsigned char cpt, cpg_t cpg, int32_t *extra) {
 
@@ -478,10 +451,10 @@ static int32_t cpgtou(unsigned char cpt, cpg_t cpg, int32_t *extra) {
         0x0E58,  0x0E59,  0x0E5A,  0x0E5B,  0x00A2,  0x00AC,  0x00A6,  0x00A0
     };
     static const int32_t CPG_932_TBL[128] = {
-        cpNONE,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,
-        cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,
-        cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,
-        cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,
+        cpNONE,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,
+        cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,
+        cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,
+        cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,
         cpNONE,  0xFF61,  0xFF62,  0xFF63,  0xFF64,  0xFF65,  0xFF66,  0xFF67,
         0xFF68,  0xFF69,  0xFF6A,  0xFF6B,  0xFF6C,  0xFF6D,  0xFF6E,  0xFF6F,
         0xFF70,  0xFF71,  0xFF72,  0xFF73,  0xFF74,  0xFF75,  0xFF76,  0xFF77,
@@ -490,10 +463,10 @@ static int32_t cpgtou(unsigned char cpt, cpg_t cpg, int32_t *extra) {
         0xFF88,  0xFF89,  0xFF8A,  0xFF8B,  0xFF8C,  0xFF8D,  0xFF8E,  0xFF8F,
         0xFF90,  0xFF91,  0xFF92,  0xFF93,  0xFF94,  0xFF95,  0xFF96,  0xFF97,
         0xFF98,  0xFF99,  0xFF9A,  0xFF9B,  0xFF9C,  0xFF9D,  0xFF9E,  0xFF9F,
-        cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,
-        cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,
-        cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,
-        cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpNONE,  cpNONE,  cpNONE
+        cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,
+        cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,
+        cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,
+        cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpNONE,  cpNONE,  cpNONE
     };
     static const int32_t CPG_1250_TBL[128] = {
         0x20AC,  cpNONE,  0x201A,  cpNONE,  0x201E,  0x2026,  0x2020,  0x2021,
@@ -676,10 +649,10 @@ static int32_t cpgtou(unsigned char cpt, cpg_t cpg, int32_t *extra) {
         0x00AF,  0x02D8,  0x02D9,  0x02DA,  0x00B8,  0x02DD,  0x02DB,  0x02C7
     };
     static const int32_t CPG_10001_TBL[128] = {
-        0x005C,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,
-        cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,
-        cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,
-        cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,
+        0x005C,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,
+        cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,
+        cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,
+        cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,
         0x00A0,  0xFF61,  0xFF62,  0xFF63,  0xFF64,  0xFF65,  0xFF66,  0xFF67,
         0xFF68,  0xFF69,  0xFF6A,  0xFF6B,  0xFF6C,  0xFF6D,  0xFF6E,  0xFF6F,
         0xFF70,  0xFF71,  0xFF72,  0xFF73,  0xFF74,  0xFF75,  0xFF76,  0xFF77,
@@ -688,10 +661,10 @@ static int32_t cpgtou(unsigned char cpt, cpg_t cpg, int32_t *extra) {
         0xFF88,  0xFF89,  0xFF8A,  0xFF8B,  0xFF8C,  0xFF8D,  0xFF8E,  0xFF8F,
         0xFF90,  0xFF91,  0xFF92,  0xFF93,  0xFF94,  0xFF95,  0xFF96,  0xFF97,
         0xFF98,  0xFF99,  0xFF9A,  0xFF9B,  0xFF9C,  0xFF9D,  0xFF9E,  0xFF9F,
-        cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,
-        cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,
-        cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,
-        cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  cpCAGN,  0x00A9,  0x2122,  0x2026
+        cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,
+        cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,
+        cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,
+        cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  cpDBCS,  0x00A9,  0x2122,  0x2026
     };
     static const int32_t CPG_10004_TBL[128] = {
         0x00C4,  0x00A0,  0x00C7,  0x00C9,  0x00D1,  0x00D6,  0x00DC,  0x00E1,
@@ -766,22 +739,22 @@ static int32_t cpgtou(unsigned char cpt, cpg_t cpg, int32_t *extra) {
         0x0448,  0x0449,  0x044A,  0x044B,  0x044C,  0x044D,  0x044E,  0x20AC
     };
     static const int32_t CPG_10021_TBL[128] = {
-        0x00AB, 0x00BB, 0x2026, 0x0E48, 0x0E49, 0x0E4A, 0x0E4B, 0x0E4C, 
-        0x0E48, 0x0E49, 0x0E4A, 0x0E4B, 0x0E4C, 0x201C, 0x201D, 0x0E4D, 
-        cpNONE, 0x2022, 0x0E31, 0x0E47, 0x0E34, 0x0E35, 0x0E36, 0x0E37, 
-        0x0E48, 0x0E49, 0x0E4A, 0x0E4B, 0x0E4C, 0x2018, 0x2019, cpNONE, 
-           160, 0x0E01, 0x0E02, 0x0E03, 0x0E04, 0x0E05, 0x0E06, 0x0E07, 
-        0x0E08, 0x0E09, 0x0E0A, 0x0E0B, 0x0E0C, 0x0E0D, 0x0E0E, 0x0E0F, 
-        0x0E10, 0x0E11, 0x0E12, 0x0E13, 0x0E14, 0x0E15, 0x0E16, 0x0E17, 
-        0x0E18, 0x0E19, 0x0E1A, 0x0E1B, 0x0E1C, 0x0E1D, 0x0E1E, 0x0E1F, 
-        0x0E20, 0x0E21, 0x0E22, 0x0E23, 0x0E24, 0x0E25, 0x0E26, 0x0E27, 
-        0x0E28, 0x0E29, 0x0E2A, 0x0E2B, 0x0E2C, 0x0E2D, 0x0E2E, 0x0E2F, 
-        0x0E30, 0x0E31, 0x0E32, 0x0E33, 0x0E34, 0x0E35, 0x0E36, 0x0E37, 
-        0x0E38, 0x0E39, 0x0E3A, 0x2060, 0x200B, 0x2013, 0x2014, 0x0E3F, 
-        0x0E40, 0x0E41, 0x0E42, 0x0E43, 0x0E44, 0x0E45, 0x0E46, 0x0E47, 
-        0x0E48, 0x0E49, 0x0E4A, 0x0E4B, 0x0E4C, 0x0E4D, 0x2122, 0x0E4F, 
-        0x0E50, 0x0E51, 0x0E52, 0x0E53, 0x0E54, 0x0E55, 0x0E56, 0x0E57, 
-        0x0E58, 0x0E59, 0x00AE, 0x00A9, cpNONE, cpNONE, cpNONE, cpNONE, 
+        0x00AB,  0x00BB,  0x2026,  0x0E48,  0x0E49,  0x0E4A,  0x0E4B,  0x0E4C, 
+        0x0E48,  0x0E49,  0x0E4A,  0x0E4B,  0x0E4C,  0x201C,  0x201D,  0x0E4D, 
+        cpNONE,  0x2022,  0x0E31,  0x0E47,  0x0E34,  0x0E35,  0x0E36,  0x0E37, 
+        0x0E48,  0x0E49,  0x0E4A,  0x0E4B,  0x0E4C,  0x2018,  0x2019,  cpNONE, 
+           160,  0x0E01,  0x0E02,  0x0E03,  0x0E04,  0x0E05,  0x0E06,  0x0E07, 
+        0x0E08,  0x0E09,  0x0E0A,  0x0E0B,  0x0E0C,  0x0E0D,  0x0E0E,  0x0E0F, 
+        0x0E10,  0x0E11,  0x0E12,  0x0E13,  0x0E14,  0x0E15,  0x0E16,  0x0E17, 
+        0x0E18,  0x0E19,  0x0E1A,  0x0E1B,  0x0E1C,  0x0E1D,  0x0E1E,  0x0E1F, 
+        0x0E20,  0x0E21,  0x0E22,  0x0E23,  0x0E24,  0x0E25,  0x0E26,  0x0E27, 
+        0x0E28,  0x0E29,  0x0E2A,  0x0E2B,  0x0E2C,  0x0E2D,  0x0E2E,  0x0E2F, 
+        0x0E30,  0x0E31,  0x0E32,  0x0E33,  0x0E34,  0x0E35,  0x0E36,  0x0E37, 
+        0x0E38,  0x0E39,  0x0E3A,  0x2060,  0x200B,  0x2013,  0x2014,  0x0E3F, 
+        0x0E40,  0x0E41,  0x0E42,  0x0E43,  0x0E44,  0x0E45,  0x0E46,  0x0E47, 
+        0x0E48,  0x0E49,  0x0E4A,  0x0E4B,  0x0E4C,  0x0E4D,  0x2122,  0x0E4F, 
+        0x0E50,  0x0E51,  0x0E52,  0x0E53,  0x0E54,  0x0E55,  0x0E56,  0x0E57, 
+        0x0E58,  0x0E59,  0x00AE,  0x00A9,  cpNONE,  cpNONE,  cpNONE,  cpNONE 
     };    
     static const int32_t CPG_10029_TBL[128] = {
         0x00C4,  0x0100,  0x0101,  0x00C9,  0x0104,  0x00D6,  0x00DC,  0x00E1,
@@ -819,9 +792,11 @@ static int32_t cpgtou(unsigned char cpt, cpg_t cpg, int32_t *extra) {
         0xF8FF,  0x00D2,  0x00DA,  0x00DB,  0x00D9,  cpNONE,  0x02C6,  0x02DC,
         0x00AF,  0x02D8,  0x02D9,  0x02DA,  0x00B8,  0x02DD,  0x02DB,  0x02C7
     };
-    // This is the "standard" Shift JIS table, the least common denominator
-    // between various supported implementations.
-    static const int32_t SHIFTJIS[39][189] = {
+    static const int32_t SJIS_CORE[39][189] = {
+        /*––––––––––––––––––––––––––––––––––––––––––––––––––––––––––*\
+        |                      STANDARD SHIFTJIS                     |
+        |  Lease common denominator between various implementations  |
+        \*––––––––––––––––––––––––––––––––––––––––––––––––––––––––––*/
         { // SHIFTJIS TABLE: Lead Byte 81__
           /*4*/0x3000, 0x3001, 0x3002, 0xFF0C, 0xFF0E, 0x30FB, 0xFF1A, 0xFF1B,  
                0xFF1F, 0xFF01, 0x309B, 0x309C, 0x00B4, 0xFF40, 0x00A8, 0xFF3E,
@@ -1838,9 +1813,11 @@ static int32_t cpgtou(unsigned char cpt, cpg_t cpg, int32_t *extra) {
                cpNONE, cpNONE, cpNONE, cpNONE, cpNONE                        },
 
     };
-    // This is a set of Shift JIS tables which are complete overrides of 
-    // "standard" Shift JIS, as appearing in Microsoft Code Page 932
     static const int32_t SJIS_932_EXT[6][189] = {
+        /*––––––––––––––––––––––––––––––––––––––––––––––––––––––––––*\
+        |                MICROSOFT SHIFTJIS OVERRIDES                |
+        |    Overrides of "standard" ShiftJIS for MS Code Page 932   |
+        \*––––––––––––––––––––––––––––––––––––––––––––––––––––––––––*/
         { // SHIFTJIS TABLE: Lead Byte 87__ (Microsoft CP932 only)
           /*4*/0x2460, 0x2461, 0x2462, 0x2463, 0x2464, 0x2465, 0x2466, 0x2467, 
                0x2468, 0x2469, 0x246A, 0x246B, 0x246C, 0x246D, 0x246E, 0x246F, 
@@ -1998,15 +1975,14 @@ static int32_t cpgtou(unsigned char cpt, cpg_t cpg, int32_t *extra) {
           /*F*/cpNONE, cpNONE, cpNONE, cpNONE, cpNONE, cpNONE, cpNONE, cpNONE, 
                cpNONE, cpNONE, cpNONE, cpNONE, cpNONE                       }
     };
-    // This is a set of Shift JIS tables which are complete overrides of 
-    // "standard" Shift JIS, as appearing in Apple Japan (Code Page 10001)
-    // Note the use of cpSTRN for 0x87FB and 0x87FC.  These code page
-    // code points map to four-character abbreviations:
-    //     0x87FB  有限会社  "limited company, ltd. [yuugen gaisha]"
-    //     0x87FC  財団法人  "foundation [zaidan houjin]"
-    // For now, cpSTRN has the same value as cpNONE.  We will implement this
-    // at a later point in time. 
     static const int32_t SJIS_APL_EXT[8][189] = {
+        /*----------------------------------------------------------*\
+        |                  APPLE SHIFTJIS OVERRIDES                  |
+        |    Overrides of "standard" ShiftJIS for Apple Japan, also  |
+        |    known as Code Page 10001.  0x87FB and 0x87FC are pains  |
+        |    in the butt and resulted in an API change due to being  |
+        |    four actual characters each: 有限会社 and 財団法人         |
+        \*----------------------------------------------------------*/
         { // SHIFTJIS TABLE: Lead Byte 81__ (Apple CP10001 only)
           /*4*/0x3000, 0x3001, 0x3002, 0xFF0C, 0xFF0E, 0x30FB, 0xFF1A, 0xFF1B, 
                0xFF1F, 0xFF01, 0x309B, 0x309C, 0x00B4, 0xFF40, 0x00A8, 0xFF3E, 
@@ -2106,7 +2082,7 @@ static int32_t cpgtou(unsigned char cpt, cpg_t cpg, int32_t *extra) {
           /*E*/cpNONE, cpNONE, cpNONE, cpNONE, cpNONE, 0x337E, 0x337D, 0x337C, 
                0x337B, cpNONE, cpNONE, cpNONE, cpNONE, cpNONE, cpNONE, cpNONE, 
           /*F*/cpNONE, cpNONE, cpNONE, cpNONE, cpNONE, cpNONE, cpNONE, cpNONE, 
-               cpNONE, cpNONE, 0x337F, cpSTRN, cpSTRN                       },
+               cpNONE, cpNONE, 0x337F, cpMULT, cpMULT                       },
         { // SHIFTJIS TABLE: Lead Byte 88__ (Apple CP10001 only)
           /*4*/0x222E, 0x221F, 0x22BF, cpNONE, cpNONE, cpNONE, cpNONE, cpNONE, 
                cpNONE, cpNONE, cpNONE, cpNONE, cpNONE, cpNONE, cpNONE, cpNONE, 
@@ -2208,8 +2184,11 @@ static int32_t cpgtou(unsigned char cpt, cpg_t cpg, int32_t *extra) {
           /*F*/cpNONE, cpNONE, cpNONE, cpNONE, cpNONE, cpNONE, cpNONE, cpNONE, 
                cpNONE, cpNONE, cpNONE, cpNONE, cpNONE                       }               
     };
-    // Define a single blank block IOT save space
     static const int32_t SJIS_BLANK[189] = {
+          /*----------------------------------------------------------*\
+          |                         BLANK BANK                         |
+          |    Several "planes" are empty; made this to reduce size    |
+          \*----------------------------------------------------------*/
           /*4*/cpNONE, cpNONE, cpNONE, cpNONE, cpNONE, cpNONE, cpNONE, cpNONE, 
                cpNONE, cpNONE, cpNONE, cpNONE, cpNONE, cpNONE, cpNONE, cpNONE, 
           /*5*/cpNONE, cpNONE, cpNONE, cpNONE, cpNONE, cpNONE, cpNONE, cpNONE, 
@@ -2235,51 +2214,53 @@ static int32_t cpgtou(unsigned char cpt, cpg_t cpg, int32_t *extra) {
           /*F*/cpNONE, cpNONE, cpNONE, cpNONE, cpNONE, cpNONE, cpNONE, cpNONE, 
                cpNONE, cpNONE, cpNONE, cpNONE, cpNONE                       
     };
-    // Compose the Code Page 932 ShiftJIS table as a composite of standard
-    // ShiftJIS, blank blocks, and Microsoft overrides. 
     static const int32_t **SJIS_932_TBL = { 
-        SHIFTJIS[0],         // Lead byte 81
-        SHIFTJIS[1],         // Lead byte 82
-        SHIFTJIS[2],         // Lead byte 83
-        SHIFTJIS[3],         // Lead byte 84
+        /*----------------------------------------------------------*\
+        |               MICROSOFT SHIFTJIS COMPOSITION               |
+        |    Combine core ShiftJIS definitions with MS extensions    |
+        \*----------------------------------------------------------*/
+        SJIS_CORE[0],        // Lead byte 81
+        SJIS_CORE[1],        // Lead byte 82
+        SJIS_CORE[2],        // Lead byte 83
+        SJIS_CORE[3],        // Lead byte 84
         SHIFTJISBLANK,       // Lead byte 85
         SHIFTJISBLANK,       // Lead byte 86
         SJIS_932_EXT[0],     // Lead byte 87
-        SHIFTJIS[4],         // Lead byte 88
-        SHIFTJIS[5],         // Lead byte 89
-        SHIFTJIS[6],         // Lead byte 8A
-        SHIFTJIS[7],         // Lead byte 8B
-        SHIFTJIS[8],         // Lead byte 8C
-        SHIFTJIS[9],         // Lead byte 8D
-        SHIFTJIS[10],        // Lead byte 8E
-        SHIFTJIS[11],        // Lead byte 8F
-        SHIFTJIS[12],        // Lead byte 90
-        SHIFTJIS[13],        // Lead byte 91
-        SHIFTJIS[14],        // Lead byte 92
-        SHIFTJIS[15],        // Lead byte 93
-        SHIFTJIS[16],        // Lead byte 94
-        SHIFTJIS[17],        // Lead byte 95
-        SHIFTJIS[18],        // Lead byte 96
-        SHIFTJIS[19],        // Lead byte 97
-        SHIFTJIS[20],        // Lead byte 98
-        SHIFTJIS[21],        // Lead byte 99
-        SHIFTJIS[22],        // Lead byte 9A
-        SHIFTJIS[23],        // Lead byte 9B
-        SHIFTJIS[24],        // Lead byte 9C
-        SHIFTJIS[25],        // Lead byte 9D
-        SHIFTJIS[26],        // Lead byte 9E
-        SHIFTJIS[27],        // Lead byte 9F
-        SHIFTJIS[28],        // Lead byte E0
-        SHIFTJIS[29],        // Lead byte E1
-        SHIFTJIS[30],        // Lead byte E2
-        SHIFTJIS[31],        // Lead byte E3
-        SHIFTJIS[32],        // Lead byte E4
-        SHIFTJIS[33],        // Lead byte E5
-        SHIFTJIS[34],        // Lead byte E6
-        SHIFTJIS[35],        // Lead byte E7
-        SHIFTJIS[36],        // Lead byte E8
-        SHIFTJIS[37],        // Lead byte E9
-        SHIFTJIS[38],        // Lead byte EA
+        SJIS_CORE[4],        // Lead byte 88
+        SJIS_CORE[5],        // Lead byte 89
+        SJIS_CORE[6],        // Lead byte 8A
+        SJIS_CORE[7],        // Lead byte 8B
+        SJIS_CORE[8],        // Lead byte 8C
+        SJIS_CORE[9],        // Lead byte 8D
+        SJIS_CORE[10],       // Lead byte 8E
+        SJIS_CORE[11],       // Lead byte 8F
+        SJIS_CORE[12],       // Lead byte 90
+        SJIS_CORE[13],       // Lead byte 91
+        SJIS_CORE[14],       // Lead byte 92
+        SJIS_CORE[15],       // Lead byte 93
+        SJIS_CORE[16],       // Lead byte 94
+        SJIS_CORE[17],       // Lead byte 95
+        SJIS_CORE[18],       // Lead byte 96
+        SJIS_CORE[19],       // Lead byte 97
+        SJIS_CORE[20],       // Lead byte 98
+        SJIS_CORE[21],       // Lead byte 99
+        SJIS_CORE[22],       // Lead byte 9A
+        SJIS_CORE[23],       // Lead byte 9B
+        SJIS_CORE[24],       // Lead byte 9C
+        SJIS_CORE[25],       // Lead byte 9D
+        SJIS_CORE[26],       // Lead byte 9E
+        SJIS_CORE[27],       // Lead byte 9F
+        SJIS_CORE[28],       // Lead byte E0
+        SJIS_CORE[29],       // Lead byte E1
+        SJIS_CORE[30],       // Lead byte E2
+        SJIS_CORE[31],       // Lead byte E3
+        SJIS_CORE[32],       // Lead byte E4
+        SJIS_CORE[33],       // Lead byte E5
+        SJIS_CORE[34],       // Lead byte E6
+        SJIS_CORE[35],       // Lead byte E7
+        SJIS_CORE[36],       // Lead byte E8
+        SJIS_CORE[37],       // Lead byte E9
+        SJIS_CORE[38],       // Lead byte EA
         SHIFTJISBLANK,       // Lead byte EB
         SHIFTJISBLANK,       // Lead byte EC
         SJIS_932_EXT[1],     // Lead byte ED
@@ -2299,9 +2280,11 @@ static int32_t cpgtou(unsigned char cpt, cpg_t cpg, int32_t *extra) {
         SJIS_932_EXT[4],     // Lead byte FB
         SJIS_932_EXT[5],     // Lead byte FC
     };
-    // Compose the Code Page 932 ShiftJIS table as a composite of standard
-    // ShiftJIS, blank blocks, and Apple overrides. 
     static const int32_t **SJIS_APL_TBL = {
+        /*----------------------------------------------------------*\
+        |                 APPLE SHIFTJIS COMPOSITION                 |
+        |   Combine core ShiftJIS definitions with Apple extensions  |
+        \*----------------------------------------------------------*/
         SJIS_APL_EXT[0],     // Lead byte 81
         SHIFTJIS[1],         // Lead byte 82
         SHIFTJIS[2],         // Lead byte 83
@@ -4323,7 +4306,9 @@ static int32_t cpgtou(unsigned char cpt, cpg_t cpg, int32_t *extra) {
                0x2551, 0x2550, 0x256D, 0x256E, 0x2570, 0x256F, 0x2593       }
     };
     
-    unsigned char c = cpt;
+    uint8_t lo = cpLOBYTE(cpt);
+    uint8_t hi = cpHIBYTE(cpt);
+    uint8_t c =  lo;
     
     int32_t r = 0;
 
@@ -4342,48 +4327,8 @@ static int32_t cpgtou(unsigned char cpt, cpg_t cpg, int32_t *extra) {
         case CPG_865:     r = (c<128) ? c : CPG_865_TBL[c-128];     break;
         case CPG_866:     r = (c<128) ? c : CPG_866_TBL[c-128];     break;
         case CPG_874:     r = (c<128) ? c : CPG_874_TBL[c-128];     break;
-        case CPG_932:    
-            if (*extra < 0) { 
-                r = (c<128) ? c : CPG_932_TBL[c-128];
-                if (r == cpCAGN) *extra = c;
-            } else {
-                // MAGIC NUMBERS
-                // ––ShiftJIS DBCS hi bytes in x81..x9F,xE0..xFC, so ANDing
-                // with 0b00111111 (0x3F) gets contiguous values; subtracting
-                // one makes these a zero-based offset into a lookup table. 
-                // That's fifteen 0x8_ blocks, sixteen 0x9_ and 0xE_ blocks,
-                // and thirteen 0xF_ blocks for a total of 60 (0–59).
-                // ––ShiftJIS DBCS lo bytes are at 0x40 through 0xFC. If we
-                // subtract 0x40, we have a range of 0x00–0xBC (0–188).
-                uint8_t hi = (*extra & 0x3F) - 1;
-                uint8_t lo = c - 0x40;
-                if (hi > 59)    {  r = cpSQER;   break;   }
-                if (lo > 188)   {  r = cpSQER;   break;   }
-                r = SJIS_932_TBL[hi][lo]; 
-                *extra = cpNONE;
-            }
-            break;
         case CPG_936:     r = cpUNSP;                               break;
         case CPG_949:     r = cpUNSP;                               break;
-        case CPG_950:
-            if (*extra < 0) { 
-                r = (c<0x80)?c : (c<0xA1||c>0xF9) ? cpSQER : cpCAGN;
-                if (r == cpCAGN) *extra = c;
-            } else {
-                uint8_t hi = *extra;
-                uint8_t lo = c;
-                if (hi < 0xA1)                 {   r = cpSQER;   break;   } 
-                if (hi > 0xF9)                 {   r = cpSQER;   break;   }
-                if (lo < 0x40)                 {   r = cpSQER;   break;   }
-                if (lo > 0xFE)                 {   r = cpSQER;   break;   }
-                if (0x80 <= lo && lo < 0xA0)   {   r = cpSQER;   break;   }
-                hi = hi - 0xA1;
-                lo = lo - 0x40;
-                lo = (lo < 0x40) ? lo : lo - 0x20;
-                r = QUWEIBIG5[hi][lo];                 
-                *extra = cpNONE;
-            }
-            break;
         case CPG_1250:    r = (c<128) ? c : CPG_1250_TBL[c-128];    break;
         case CPG_1251:    r = (c<128) ? c : CPG_1251_TBL[c-128];    break;
         case CPG_1252:    r = (c<128) ? c : CPG_1252_TBL[c-128];    break;
@@ -4395,96 +4340,14 @@ static int32_t cpgtou(unsigned char cpt, cpg_t cpg, int32_t *extra) {
         case CPG_1258:    r = (c<128) ? c : CPG_1258_TBL[c-128];    break;
         case CPG_1361:    r = cpUNSP;                               break;
         case CPG_10000:   r = (c<128) ? c : CPG_10000_TBL[c-128];   break;
-        case CPG_10001:   
-            if (*extra < 0) { 
-                r = (c<128) ? c : CPG_10001_TBL[c-128];
-                if (r == cpCAGN) *extra = c;
-            } else {
-                // MAGIC NUMBERS
-                // ––ShiftJIS DBCS hi bytes in x81..x9F,xE0..xFC, so ANDing
-                // with 0b00111111 (0x3F) gets contiguous values; subtracting
-                // one makes these a zero-based offset into a lookup table. 
-                // That's fifteen 0x8_ blocks, sixteen 0x9_ and 0xE_ blocks,
-                // and thirteen 0xF_ blocks for a total of 60 (0–59).
-                // ––ShiftJIS DBCS lo bytes are at 0x40 through 0xFC. If we
-                // subtract 0x40, we have a range of 0x00–0xBC (0–188).
-                uint8_t hi = (*extra & 0x3F) - 1;
-                uint8_t lo = c - 0x40;
-                if (hi > 59)    {  r = cpSQER;   break;   }
-                if (lo > 188)   {  r = cpSQER;   break;   }
-                r = SJIS_APL_TBL[hi][lo]; 
-                uint16_t composite = (hi << 8) | lo;
-                switch (composite) {
-                    case 0x8591:  *extra = 0x002E;            break;
-                    case 0x85AB:  *extra = 0x2160;            break;
-                    case 0x85AC:  *extra = 0x2163;            break;
-                    case 0x85AD:  *extra = 0x2164;            break;
-                    case 0x85BF:  *extra = 0x2170;            break;
-                    case 0x85C0:  *extra = 0x2173;            break;
-                    case 0x85C1:  *extra = 0x2174;            break;
-                    case 0x8645:  *extra = 0x20DE;            break;
-                    case 0x864B:  *extra = 0x20DE;            break;
-                    case 0x865D:  *extra = 0x1D2E;            break;
-                    case 0x86CE:  *extra = 0x2191;            break;
-                    case 0x8791:  *extra = 0x20DD;            break;
-                    case 0x8792:  *extra = 0x20DD;            break;
-                    case 0x879D:  *extra = 0x20DD;            break;
-                    case 0xEB61:  *extra = 0xFF5C;            break;
-                    default:      *extra = cpNONE;
-                }
-            }
-            break;
         case CPG_10002:   r = cpUNSP;                               break;
         case CPG_10003:   r = cpUNSP;                               break;
         case CPG_10004:   r = (c<128) ? c : CPG_10004_TBL[c-128];   break;
-        case CPG_10005:   
-            r = (c<128) ? c : CPG_10005_TBL[c-128];   
-            switch (c) {
-                // Support the Mac Hebrew lamed-holam ligature
-                case 0xC0: *extra = 0x05B9;                   break;
-                default:   *extra = cpNONE;                   break;
-            }
-            break;
+        case CPG_10005:   r = (c<128) ? c : CPG_10005_TBL[c-128];   break;
         case CPG_10006:   r = (c<128) ? c : CPG_10006_TBL[c-128];   break;
         case CPG_10007:   r = (c<128) ? c : CPG_10007_TBL[c-128];   break;
         case CPG_10008:   r = cpUNSP;                               break;
-        case CPG_10021:   
-            r = (c<128) ? c : CPG_10021_TBL[c-128];
-            switch (c) {
-                case 0x88: /* fallthrough */
-                case 0x89: /* fallthrough */ 
-                case 0x8A: /* fallthrough */ 
-                case 0x8B: /* fallthrough */ 
-                case 0x8C: /* fallthrough */ 
-                case 0x88: /* fallthrough */ 
-                case 0x89: /* fallthrough */ 
-                case 0x8A: /* fallthrough */ 
-                case 0x8B: /* fallthrough */ 
-                case 0x8C: *extra = 0xF873;                   break;
-                case 0x92: /* fallthrough */ 
-                case 0x93: /* fallthrough */ 
-                case 0x94: /* fallthrough */ 
-                case 0x95: /* fallthrough */ 
-                case 0x96: /* fallthrough */ 
-                case 0x97: /* fallthrough */ 
-                case 0x98: /* fallthrough */ 
-                case 0x99: /* fallthrough */ 
-                case 0x9A: /* fallthrough */ 
-                case 0x9B: /* fallthrough */ 
-                case 0x9C: *extra = 0xF874;                   break;
-                case 0x83: /* fallthrough */ 
-                case 0x84: /* fallthrough */ 
-                case 0x85: /* fallthrough */ 
-                case 0x86: /* fallthrough */ 
-                case 0x87: /* fallthrough */ 
-                case 0x83: /* fallthrough */ 
-                case 0x84: /* fallthrough */ 
-                case 0x85: /* fallthrough */ 
-                case 0x86: /* fallthrough */ 
-                case 0x87: *extra = 0xF875;                   break;
-                default:   *extra = cpNONE;
-            }
-            break;
+        case CPG_10021:   r = (c<128) ? c : CPG_10021_TBL[c-128];   break;
         case CPG_10029:   r = (c<128) ? c : CPG_10029_TBL[c-128];   break;
         case CPG_10081:   r = (c<128) ? c : CPG_10081_TBL[c-128];   break;
         case CPG_57002:   r = cpUNSP;                               break;
@@ -4498,6 +4361,60 @@ static int32_t cpgtou(unsigned char cpt, cpg_t cpg, int32_t *extra) {
         case CPG_57010:   r = cpUNSP;                               break;
         case CPG_57011:   r = cpUNSP;                               break;
         case CHSET_2:     r = cpUNSP;                               break;
+        case CPG_932:
+            /*----------------------------------------------------------*\
+            |                     MICROSOFT SHIFTJIS                     |
+            \*----------------------------------------------------------*/
+            if (hi == 0) { 
+                r = (c < 128) ? c : CPG_932_TBL[c-128];
+            } else {
+                hi = (hi & 0x3F) - 1;
+                lo = lo - 0x40;
+                if ((hi > 59) || (lo > 188)) { // Sequence error, try recovery
+                    r = (c < 128) ? c : CPG_932_TBL[c-128];
+                } else {
+                    r = SJIS_932_TBL[hi][lo]; 
+                }
+            }
+            break;
+        case CPG_950:
+            /*----------------------------------------------------------*\
+            |                 MICROSOFT BIG5 TRAD CHINESE                |
+            \*----------------------------------------------------------*/
+            if (hi == 0) { 
+                r = (c<128) ? c : (0xA1<=c && c<=0xF9) ? cpDBCS : cpNONE;
+            } else {
+                // Try recovery if there's a sequence error
+                if (hi<0xA1 || hi>0xF9) {
+                    r = (c<128) ? c : (0xA1<=c && c<=0xF9) ? cpDBCS : cpNONE;
+                } else if (lo<0x40 || lo>0xFE || (0x80 <= lo && lo <= 0x9F)) {
+                    r = (c<128) ? c : (0xA1<=c && c<=0xF9) ? cpDBCS : cpNONE;
+                }
+                // Otherwise get the double-byte mapping
+                else {    
+                    hi = hi - 0xA1;
+                    lo = lo - 0x40;
+                    if (lo >= 0x40) lo = lo - 0x20;
+                    r = QUWEIBIG5[hi][lo];                 
+                }
+            }
+            break;
+        case CPG_10001:
+            /*----------------------------------------------------------*\
+            |                       APPLE SHIFTJIS                       |
+            \*----------------------------------------------------------*/
+            if (*extra < 0) { 
+                r = (c<128) ? c : CPG_10001_TBL[c-128];
+            } else {
+                hi = (hi & 0x3F) - 1;
+                lo = lo - 0x40;
+                if ((hi > 59) || (lo > 188)) { // Sequence error, try recovery
+                    r = (c < 128) ? c : CPG_932_TBL[c-128];
+                } else {
+                    r = SJIS_APL_TBL[hi][lo]; 
+                }
+            }
+            break;
     }
    
     return r;
