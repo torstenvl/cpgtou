@@ -44,7 +44,8 @@
 |     - If the (low) byte stored in cpt is the first half of a double-byte    |
 |       sequence (e.g., in ShiftJIS-based code pages), the function will      |
 |       return cpDBSQ (defined as -3).  The byte stored in cpt will be stored |
-|       in the memory location pointed-to by xtra.                            |
+|       in the memory location pointed-to by xtra for use in the subsequent   |
+|       call.                                                                 |
 |                                                                             |
 |     - If the code point in cpt (whether single- or double-byte) codes for   |
 |       a character or sequence that must use multiple Unicode code points    |

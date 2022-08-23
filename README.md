@@ -25,9 +25,9 @@ or ShiftJIS) and multiple return.
 
 - If the (low) byte stored in cpt is the first half of a double-byte
   sequence (e.g., in ShiftJIS-based code pages), the function will
-  return cpDBSQ (defined as -3).  It is the responsibility of the
-  calling function to shift the first byte left and add (or) the next
-  byte of the sequence before calling it again.
+  return cpDBSQ (defined as -3).  The byte stored in cpt will be stored
+  in the memory location pointed-to by xtra for use in the subsequent
+  call.
 
 - If the code point in cpt (whether single- or double-byte) codes for
   a character or sequence that must use multiple Unicode code points
