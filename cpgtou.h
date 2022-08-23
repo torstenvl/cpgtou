@@ -19,7 +19,7 @@
 |                                                                             |
 |-----------------------------------------------------------------------------|
 |                                                                             |
-|           int32_t cpgtou(cpg_t cpg, uint16_t cpt, int32_t **mult)           |
+|    int32_t cpgtou(cpg_t cpg, uint8_t cpt, uint8_t *xtra, int32_t **mult)    |
 |                                                                             |
 |   USAGE                                                                     |
 |   -----                                                                     |
@@ -43,9 +43,8 @@
 |                                                                             |
 |     - If the (low) byte stored in cpt is the first half of a double-byte    |
 |       sequence (e.g., in ShiftJIS-based code pages), the function will      |
-|       return cpDBSQ (defined as -3).  It is the responsibility of the       |
-|       calling function to shift the first byte left and add (or) the next   |
-|       byte of the sequence before calling it again.                         |
+|       return cpDBSQ (defined as -3).  The byte stored in cpt will be stored |
+|       in the memory location pointed-to by xtra.                            |
 |                                                                             |
 |     - If the code point in cpt (whether single- or double-byte) codes for   |
 |       a character or sequence that must use multiple Unicode code points    |
@@ -66,23 +65,6 @@
 #define cpUNSP   -2      // Unsupported code page
 #define cpDBSQ   -3      // cpt is the first half of a double-byte sequence
 #define cpMULT   -4      // Look to last argument for a 0L-terminated list
-
-#define cpHIBYTE(c) ((c & 0xFF00) >> 8)
-#define cpLOBYTE(c) ((c & 0x00FF))
-
-__attribute__((used)) volatile static const char cpBITSCLICENSETEXT[] = "\
-BITSC LICENSE NOTICE                                                      \n\
-                                                                          \n\
-CPGTOU - Code Page to Unicode                                             \n\
-Copyright (c) 2022 Joshua Lee Ockert <torstenvl@gmail.com>                \n\
-                                                                          \n\
-THIS WORK IS PROVIDED \"AS IS\" WITH NO WARRANTY OF ANY KIND. THE IMPLIED   \n\
-WARRANTIES OF MERCHANTABILITY, FITNESS, NON-INFRINGEMENT, AND TITLE ARE   \n\
-EXPRESSLY DISCLAIMED. NO AUTHOR SHALL BE LIABLE UNDER ANY THEORY OF LAW   \n\
-FOR ANY DAMAGES OF ANY KIND RESULTING FROM THE USE OF THIS WORK.          \n\
-                                                                          \n\
-Permission to use, copy, modify, and/or distribute this work for any      \n\
-purpose is hereby granted, provided this notice appears in all copies.    \n";
 
 typedef enum cpg_t {
     CPG_42    = 42,       // ❌ Windows Symbol
@@ -199,8 +181,8 @@ typedef enum cpg_t {
     PC        = 437,      // IBM United States
     PCA       = 850,      // IBM Multilingual
     MACROMAN  = 10000,    // Mac Roman
+    NONE      = cpNONE,
     UNSUPPORTED = cpUNSP
-
 } cpg_t;
 
 
@@ -231,7 +213,7 @@ typedef enum cpg_t {
 |                                                                            |
 \*--------------------------------------------------------------------------*/
 
-static int32_t cpgtou(cpg_t cpg, uint16_t cpt, int32_t **mult) {
+static int32_t cpgtou(cpg_t cpg, uint8_t cpt, uint8_t *xtra, const int32_t **mult) {
 
     static const int32_t CPG_437_TBL[128] = {
         0x00C7,  0x00FC,  0x00E9,  0x00E2,  0x00E4,  0x00E0,  0x00E5,  0x00E7,
@@ -4328,7 +4310,7 @@ static int32_t cpgtou(cpg_t cpg, uint16_t cpt, int32_t **mult) {
                0x2551, 0x2550, 0x256D, 0x256E, 0x2570, 0x256F, 0x2593       }
     };
 
-    static const int32_t cmpxxxxx_none[] = {cpNONE,0L};
+    static const int32_t cpmxxxxx_none[] = {cpNONE,0L};
     
     static const int32_t cpm10001_87FB[] = {0x6709,0x9650,0x4F1A,0x793E,0L};
     static const int32_t cpm10001_87FC[] = {0x8CA1,0x56E3,0x6CD5,0x4EBA,0L};
@@ -4420,14 +4402,15 @@ static int32_t cpgtou(cpg_t cpg, uint16_t cpt, int32_t **mult) {
     static const int32_t cpm10005_00FE[] = {0x202E,0x005B,0x202C,0L};
     static const int32_t cpm10005_00FF[] = {0x202E,0x007C,0x202C,0L};
 
-    uint8_t lo = cpLOBYTE(cpt);
-    uint8_t hi = cpHIBYTE(cpt);
-    uint8_t c =  lo;
+    uint8_t c =  cpt;
+    uint8_t lo = cpt;
+    uint8_t hi = *xtra;
     
     int32_t r = 0;
 
     switch(cpg) {
         case cpUNSP:      r = cpUNSP;                               break;
+        case cpNONE:      r = cpUNSP;                               break;
         case CPG_437:     r = (c<128) ? c : CPG_437_TBL[c-128];     break;
         case CPG_708:     r = (c<128) ? c : CPG_708_TBL[c-128];     break;
         case CPG_709:     r = cpUNSP;                               break;
@@ -4483,15 +4466,18 @@ static int32_t cpgtou(cpg_t cpg, uint16_t cpt, int32_t **mult) {
             \*----------------------------------------------------------*/
             if (hi == 0) { 
                 r = (c < 128) ? c : CPG_932_TBL[c-128];
+                *xtra = (r == cpDBSQ) ? c : 0;
             } else {
                 hi = (hi & 0x3F) - 1;
                 lo = lo - 0x40;
                 if ((hi > 59) || (lo > 188)) { // Sequence error, try recovery
                     r = (c < 128) ? c : CPG_932_TBL[c-128];
+                    *xtra = (r == cpDBSQ) ? c : 0;
                 } else {
                     r = SJIS_932_TBL[hi][lo];
                     if (r == cpNONE) { // Sequence error, try recovery
                         r = (c < 128) ? c : CPG_932_TBL[c-128];
+                        *xtra = (r == cpDBSQ) ? c : 0;
                     } 
                 }
             }
@@ -4502,12 +4488,15 @@ static int32_t cpgtou(cpg_t cpg, uint16_t cpt, int32_t **mult) {
             \*----------------------------------------------------------*/
             if (hi == 0) { 
                 r = (c<128) ? c : (0xA1<=c && c<=0xF9) ? cpDBSQ : cpNONE;
+                *xtra = (r == cpDBSQ) ? c : 0;
             } else {
                 // Try recovery if there's a sequence error
                 if (hi<0xA1 || hi>0xF9) {
                     r = (c<128) ? c : (0xA1<=c && c<=0xF9) ? cpDBSQ : cpNONE;
+                    *xtra = (r == cpDBSQ) ? c : 0;
                 } else if (lo<0x40 || lo>0xFE || (0x80 <= lo && lo <= 0x9F)) {
                     r = (c<128) ? c : (0xA1<=c && c<=0xF9) ? cpDBSQ : cpNONE;
+                    *xtra = (r == cpDBSQ) ? c : 0;
                 }
                 // Otherwise get the double-byte mapping
                 else {    
@@ -4524,17 +4513,20 @@ static int32_t cpgtou(cpg_t cpg, uint16_t cpt, int32_t **mult) {
             \*----------------------------------------------------------*/
             if (hi == 0) { 
                 r = (c<128) ? c : CPG_10001_TBL[c-128];
+                *xtra = (r == cpDBSQ) ? c : 0;
             } else {
                 hi = (hi & 0x3F) - 1;
                 lo = lo - 0x40;
                 if ((hi > 59) || (lo > 188)) { // Sequence error, try recovery
                     r = (c < 128) ? c : CPG_10001_TBL[c-128];
+                    *xtra = (r == cpDBSQ) ? c : 0;
                 } else {
                     r = SJIS_APL_TBL[hi][lo]; 
                     if (r == cpNONE) { // Sequence error, try recovery
                         r = (c < 128) ? c : CPG_10001_TBL[c-128];
+                        *xtra = (r == cpDBSQ) ? c : 0;
                     } else if (r == cpMULT) {
-                        switch (cpt) {
+                        switch ((*xtra << 8) | cpt) {
                             case 0x87FB:    *mult = cpm10001_87FB;    break;
                             case 0x87FC:    *mult = cpm10001_87FC;    break;
                             case 0x8591:    *mult = cpm10001_8591;    break;
@@ -4549,7 +4541,7 @@ static int32_t cpgtou(cpg_t cpg, uint16_t cpt, int32_t **mult) {
                             case 0x8791:    *mult = cpm10001_8791;    break;
                             case 0x8792:    *mult = cpm10001_8792;    break;
                             case 0x879D:    *mult = cpm10001_879D;    break;
-                            default:        *mult = cmpxxxxx_none; 
+                            default:        *mult = cpmxxxxx_none; 
                         }
                     }
                 }
@@ -4631,7 +4623,7 @@ static int32_t cpgtou(cpg_t cpg, uint16_t cpt, int32_t **mult) {
                 case 0x00FD:   r = cpMULT;   *mult = cpm10005_00FD;   break;
                 case 0x00FE:   r = cpMULT;   *mult = cpm10005_00FE;   break;
                 case 0x00FF:   r = cpMULT;   *mult = cpm10005_00FF;   break;
-                default: *mult = NULL; r = (c<128)?c : CPG_10005_TBL[c-128];
+                default: *mult = NULL; r = (c<128)?c : CPG_10005_TBL[c-128]; *xtra = (r == cpDBSQ) ? c : 0;
             }
             break;
 
