@@ -1,7 +1,7 @@
 # cpgtou
 ### Code page to Unicode one-way conversion
 
-    int32_t cpgtou(cpg_t cpg, uint16_t cpt, int32_t **mult)
+    int32_t cpgtou(cpg_t cpg, uint8_t cpt, uint8_t *xtra, const int32_t **mult)
 
 ### USAGE
 
@@ -13,8 +13,8 @@ or ShiftJIS) and multiple return.
 
 ### RETURN VALUE
 
-- On successful 1:1 lookup, the function returns the corresponding
-  Unicode code point.
+- On successful 1:1 lookup, and on successful 2:1 lookup for multibyte
+  encodings, the function returns the corresponding Unicode code point.
 
 - If the specified code point does not exist in the given code page,
   or if it cannot be translated into Unicode, then the function returns
