@@ -36,7 +36,7 @@ or ShiftJIS) and multiple return.
   the beginning of a 0L-terminated array of int32_t Unicode code
   points to cycle through.
   
-### BITSC LICENSE NOTICE
+### LICENSE NOTICE
                                             
 CPGTOU – Code Page to Unicode   
 Copyright (c) 2022 Joshua Lee Ockert <<torstenvl@gmail.com>>
