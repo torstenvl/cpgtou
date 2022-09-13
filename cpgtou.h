@@ -847,7 +847,7 @@ static int32_t cpgtou(cpg_t cpg, uint8_t cpt, uint8_t *xtra, const int32_t **mul
     static const int32_t SJIS_CORE[39][189] = {
         /*––––––––––––––––––––––––––––––––––––––––––––––––––––––––––*\
         |                      STANDARD SHIFTJIS                     |
-        |  Lease common denominator between various implementations  |
+        |  Least common denominator between various implementations  |
         \*––––––––––––––––––––––––––––––––––––––––––––––––––––––––––*/
         { // SHIFTJIS TABLE: Lead Byte 81__
           /*4*/0x3000, 0x3001, 0x3002, 0xFF0C, 0xFF0E, 0x30FB, 0xFF1A, 0xFF1B,  
