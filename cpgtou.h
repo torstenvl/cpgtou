@@ -213,6 +213,7 @@ typedef enum cpg_t {
 |                                                                            |
 \*--------------------------------------------------------------------------*/
 
+[[maybe_unused]] 
 static cpg_t cpgfromcpgnum(int32_t n) {
     cpg_t retval;
 
@@ -239,6 +240,7 @@ static cpg_t cpgfromcpgnum(int32_t n) {
     return retval;
 }
 
+[[maybe_unused]] 
 static cpg_t cpgfromcharsetnum(int32_t n) {
     cpg_t retval;
 
@@ -259,6 +261,7 @@ static cpg_t cpgfromcharsetnum(int32_t n) {
     return retval;
 }
 
+[[maybe_unused]] 
 static int32_t cpgtou(cpg_t cpg, uint8_t cpt, uint8_t *xtra, const int32_t **mult) {
 
     static const int32_t CPG_437_TBL[128] = {
