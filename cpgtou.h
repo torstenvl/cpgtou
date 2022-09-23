@@ -70,7 +70,8 @@ typedef enum cpg_t {
     CPG_42    = 42,       // ❌ Windows Symbol
     CPG_437   = 437,      // OEM/IBM United States
     CPG_708   = 708,      // ASMO Arabic (ASMO 708)
-    CPG_709   = 709,      // ❌❌❌ WONTFIX Arabic (ASMO 449+, BCON V4) 
+    CPG_709   = 709,      // Arabic (ASMO 449+, BCON V4) 
+    CPG_709P  = 60709,    // Progress Software variant of Code Page 709
     CPG_710   = 710,      // ❌❌❌ WONTFIX Arabic (transparent Arabic)
     CPG_711   = 711,      // ❌❌❌ WONTFIX Arabic (Nafitha Enhanced)
     CPG_720   = 720,      // DOS Arabic (transparent ASMO)
@@ -213,53 +214,53 @@ typedef enum cpg_t {
 |                                                                            |
 \*--------------------------------------------------------------------------*/
 
-static cpg_t cpgfromcpgnum(int32_t n) {
+[[maybe_unused]] static cpg_t cpgfromcpgnum(int32_t n) {
     cpg_t retval;
 
-    retval =                    (n==42) ? CPG_42 :          (n==437) ? CPG_437 :
-    (n==708) ? CPG_708 :        (n==709) ? CPG_709 :        (n==710) ? CPG_710 :
-    (n==711) ? CPG_711 :        (n==720) ? CPG_720 :        (n==819) ? CPG_819 :
-    (n==850) ? CPG_850 :        (n==852) ? CPG_852 :        (n==860) ? CPG_860 :
-    (n==862) ? CPG_862 :        (n==863) ? CPG_863 :        (n==864) ? CPG_864 :
-    (n==865) ? CPG_865 :        (n==866) ? CPG_866 :        (n==874) ? CPG_874 :
-    (n==932) ? CPG_932 :        (n==936) ? CPG_936 :        (n==949) ? CPG_949 :
-    (n==950) ? CPG_950 :        (n==1250) ? CPG_1250 :      (n==1251) ? CPG_1251 :
-    (n==1252) ? CPG_1252 :      (n==1253) ? CPG_1253 :      (n==1254) ? CPG_1254 :
-    (n==1255) ? CPG_1255 :      (n==1256) ? CPG_1256 :      (n==1257) ? CPG_1257 :
-    (n==1258) ? CPG_1258 :      (n==1361) ? CPG_1361 :      (n==10000) ? CPG_10000 :
-    (n==10001) ? CPG_10001 :    (n==10002) ? CPG_10002 :    (n==10003) ? CPG_10003 :
-    (n==10004) ? CPG_10004 :    (n==10005) ? CPG_10005 :    (n==10006) ? CPG_10006 :
-    (n==10007) ? CPG_10007 :    (n==10008) ? CPG_10008 :    (n==10021) ? CPG_10021 :
-    (n==10029) ? CPG_10029 :    (n==10081) ? CPG_10081 :    (n==57002) ? CPG_57002 :
-    (n==57003) ? CPG_57003 :    (n==57004) ? CPG_57004 :    (n==57005) ? CPG_57005 :
-    (n==57006) ? CPG_57006 :    (n==57007) ? CPG_57007 :    (n==57008) ? CPG_57008 :
-    (n==57009) ? CPG_57009 :    (n==57010) ? CPG_57010 :    (n==57011) ? CPG_57011 :
+    retval =                 (n==42)    ? CPG_42 :    (n==437)   ? CPG_437 :
+    (n==708)   ? CPG_708 :   (n==709)   ? CPG_709 :   (n==710)   ? CPG_710 :
+    (n==711)   ? CPG_711 :   (n==720)   ? CPG_720 :   (n==819)   ? CPG_819 :
+    (n==850)   ? CPG_850 :   (n==852)   ? CPG_852 :   (n==860)   ? CPG_860 :
+    (n==862)   ? CPG_862 :   (n==863)   ? CPG_863 :   (n==864)   ? CPG_864 :
+    (n==865)   ? CPG_865 :   (n==866)   ? CPG_866 :   (n==874)   ? CPG_874 :
+    (n==932)   ? CPG_932 :   (n==936)   ? CPG_936 :   (n==949)   ? CPG_949 :
+    (n==950)   ? CPG_950 :   (n==1250)  ? CPG_1250 :  (n==1251)  ? CPG_1251 :
+    (n==1252)  ? CPG_1252 :  (n==1253)  ? CPG_1253 :  (n==1254)  ? CPG_1254 :
+    (n==1255)  ? CPG_1255 :  (n==1256)  ? CPG_1256 :  (n==1257)  ? CPG_1257 :
+    (n==1258)  ? CPG_1258 :  (n==1361)  ? CPG_1361 :  (n==10000) ? CPG_10000 :
+    (n==10001) ? CPG_10001 : (n==10002) ? CPG_10002 : (n==10003) ? CPG_10003 :
+    (n==10004) ? CPG_10004 : (n==10005) ? CPG_10005 : (n==10006) ? CPG_10006 :
+    (n==10007) ? CPG_10007 : (n==10008) ? CPG_10008 : (n==10021) ? CPG_10021 :
+    (n==10029) ? CPG_10029 : (n==10081) ? CPG_10081 : (n==57002) ? CPG_57002 :
+    (n==57003) ? CPG_57003 : (n==57004) ? CPG_57004 : (n==57005) ? CPG_57005 :
+    (n==57006) ? CPG_57006 : (n==57007) ? CPG_57007 : (n==57008) ? CPG_57008 :
+    (n==57009) ? CPG_57009 : (n==57010) ? CPG_57010 : (n==57011) ? CPG_57011 :
     UNSUPPORTED;
 
     return retval;
 }
 
-static cpg_t cpgfromcharsetnum(int32_t n) {
+[[maybe_unused]] static cpg_t cpgfromcharsetnum(int32_t n) {
     cpg_t retval;
 
-    retval =                    (n==0) ? CHSET_0 :          (n==1) ? CHSET_1 :
-    (n==2) ? CHSET_2 :          (n==77) ? CHSET_77 :        (n==78) ? CHSET_78 :
-    (n==79) ? CHSET_79 :        (n==80) ? CHSET_80 :        (n==81) ? CHSET_81 :
-    (n==82) ? CHSET_82 :        (n==83) ? CHSET_83 :        (n==84) ? CHSET_84 :
-    (n==85) ? CHSET_85 :        (n==86) ? CHSET_86 :        (n==87) ? CHSET_87 :
-    (n==88) ? CHSET_88 :        (n==89) ? CHSET_89 :        (n==128) ? CHSET_128 :
-    (n==129) ? CHSET_129 :      (n==130) ? CHSET_130 :      (n==134) ? CHSET_134 :
-    (n==136) ? CHSET_136 :      (n==161) ? CHSET_161 :      (n==162) ? CHSET_162 :
-    (n==163) ? CHSET_163 :      (n==177) ? CHSET_177 :      (n==178) ? CHSET_178 :
-    (n==179) ? CHSET_179 :      (n==180) ? CHSET_180 :      (n==181) ? CHSET_181 :
-    (n==186) ? CHSET_186 :      (n==204) ? CHSET_204 :      (n==222) ? CHSET_222 :
-    (n==238) ? CHSET_238 :      (n==254) ? CHSET_254 :      (n==255) ? CHSET_255 :
+    retval =                 (n==0)   ? CHSET_0 :     (n==1)   ? CHSET_1 :
+    (n==2  ) ? CHSET_2 :     (n==77)  ? CHSET_77 :    (n==78)  ? CHSET_78 :
+    (n==79)  ? CHSET_79 :    (n==80)  ? CHSET_80 :    (n==81)  ? CHSET_81 :
+    (n==82)  ? CHSET_82 :    (n==83)  ? CHSET_83 :    (n==84)  ? CHSET_84 :
+    (n==85)  ? CHSET_85 :    (n==86)  ? CHSET_86 :    (n==87)  ? CHSET_87 :
+    (n==88)  ? CHSET_88 :    (n==89)  ? CHSET_89 :    (n==128) ? CHSET_128 :
+    (n==129) ? CHSET_129 :   (n==130) ? CHSET_130 :   (n==134) ? CHSET_134 :
+    (n==136) ? CHSET_136 :   (n==161) ? CHSET_161 :   (n==162) ? CHSET_162 :
+    (n==163) ? CHSET_163 :   (n==177) ? CHSET_177 :   (n==178) ? CHSET_178 :
+    (n==179) ? CHSET_179 :   (n==180) ? CHSET_180 :   (n==181) ? CHSET_181 :
+    (n==186) ? CHSET_186 :   (n==204) ? CHSET_204 :   (n==222) ? CHSET_222 :
+    (n==238) ? CHSET_238 :   (n==254) ? CHSET_254 :   (n==255) ? CHSET_255 :
     UNSUPPORTED;
 
     return retval;
 }
 
-static int32_t cpgtou(cpg_t cpg, uint8_t cpt, uint8_t *xtra, const int32_t **mult) {
+[[maybe_unused]] static int32_t cpgtou(cpg_t cpg, uint8_t cpt, uint8_t *xtra, const int32_t **mult) {
 
     static const int32_t CPG_437_TBL[128] = {
         /*8*/ 0x00C7, 0x00FC, 0x00E9, 0x00E2, 0x00E4, 0x00E0, 0x00E5, 0x00E7,
@@ -296,6 +297,58 @@ static int32_t cpgtou(cpg_t cpg, uint8_t cpt, uint8_t *xtra, const int32_t **mul
                0x0648, 0x0649, 0x064A, 0x064B, 0x064C, 0x064D, 0x064E, 0x064F,
         /*F*/  0x0650, 0x0651, 0x0652, cpNONE, cpNONE, cpNONE, cpNONE, cpNONE,
                cpNONE, 0x256A, 0x2518, 0x250C, 0x00B5, 0x00A3, 0x25A0, 0x00A0
+    };
+    static const int32_t CPG_709_TBL[128] = {
+        /*8*/  0x00C7, 0x00FC, 0x00E9, 0x00E2, 0x00E4, 0x00E0, 0x00E5, 0x00E7,
+               0x00EA, 0x00EB, 0x00E8, 0x00EF, 0x00EE, 0x00EC, cpNONE, cpNONE,
+        /*9*/  0x061C, 0x200E, 0x06AA, 0x00F4, 0x00F6, 0x00F2, 0x00FB, 0x00F9,
+               0xFEF5, 0xFEF7, 0xFEF9, 0xFEFB, 0x0020, 0x0020, 0x061C, 0x0192,
+        /*A*/  0x0020, 0x0021, 0x201D, 0x0023, 0x0024, 0x0025, 0x0026, 0x0027,
+               0x0028, 0x0029, 0x002A, 0x002B, 0x060C, 0x002D, 0x002E, 0x002F,
+        /*B*/  0x0660, 0x0661, 0x0662, 0x0663, 0x0664, 0x0665, 0x0666, 0x0667,
+               0x0668, 0x0669, 0x003A, 0x061B, 0x203A, 0x003D, 0x2039, 0x061F,
+        /*C*/  0x0040, 0x0621, 0x0622, 0x0623, 0x0624, 0x0625, 0x0626, 0x0627,
+               0x0628, 0x0629, 0x062A, 0x062B, 0x062C, 0x062D, 0x062E, 0x062F,
+        /*D*/  0x0630, 0x0631, 0x0632, 0x0633, 0x0634, 0x0635, 0x0636, 0x0637,
+               0x0638, 0x0639, 0x063A, 0x005B, 0x005C, 0x005D, 0x005E, 0x005F,
+        /*E*/  0x2014, 0x0641, 0x0642, 0x0643, 0x0644, 0x0645, 0x0646, 0x0647,
+               0x0648, 0x0649, 0x064A, 0x064B, 0x064C, 0x064D, 0x064E, 0x064F,
+        /*F*/  0x0650, 0x0651, 0x0652, cpMULT, cpMULT, cpMULT, cpMULT, cpMULT,
+               cpMULT, cpNONE, 0x00B7, 0x007B, 0x007C, 0x007D, 0x007E, cpNONE
+    };
+    static const int32_t CPG_709P_TBL[256] = {
+        /*0*/       0,      1, 0x2022,      3,      4,      5,      6,      7,
+                    8,      9,     10,     11,     12,     13,     14,     15,
+        /*1*/      16,     17,     18,     19,    182,    167,     20,     21,
+                   22,     23,     24,     25,     26,     27,     28,     29,
+        /*2*/      32,     33,     34,     35,     36,     37,     38,     39,
+                   40,     41,     42,     43,     44,     45,     46,     47,
+        /*3*/      48,     49,     50,     51,     52,     53,     54,     55,
+                   56,     57,     58,     59,     60,     61,     62,     63,
+        /*4*/      64,     65,     66,     67,     68,     69,     70,     71,
+                   72,     73,     74,     75,     76,     77,     78,     79,
+        /*5*/      80,     81,     82,     83,     84,     85,     86,     87,
+                   88,     89,     90,     91,     92,     93,     94,     95,
+        /*6*/      96,     97,     98,     99,    100,    101,    102,    103,
+                  104,    105,    106,    107,    108,    109,    110,    111,
+        /*7*/     112,    113,    114,    115,    116,    117,    118,    119,
+                  120,    121,    122,    123,    124,    125,    126,    127,
+        /*8*/  0x20AC,    252,    233,    226, 0x067E,    224, 0x201E,    231,
+                  234,    235,    232,    239,    238, 0x2026, 0x2020, 0x2021,
+        /*9*/  0x02C6, 0x2030, 0x0679,    244, 0x0152, 0x0686,    251,    249,
+               0x200F,    184,    162, 0x0698, 0x0688, 0x06AF, 0x2018, 0x0192,
+        /*A*/  0x2019, 0x201C, 0x201D, 0x2013, 0x06A9, 0x2122, 0x0691, 0x0153,
+               0x200D, 0x06BA,    215,    160, 0x060C,    173, 0x201A,    247,
+        /*B*/     163,    164,    165,    166,    168,    169, 0x06BE,    171,
+                  172,    174,    175, 0x061B, 0x203A,    176, 0x2039, 0x061F,
+        /*C*/     177, 0x0621, 0x0622, 0x0623, 0x0624, 0x0625, 0x0626, 0x0627,
+               0x0628, 0x0629, 0x062A, 0x062B, 0x062C, 0x062D, 0x062E, 0x062F,
+        /*D*/  0x0630, 0x0631, 0x0632, 0x0633, 0x0634, 0x0635, 0x0636, 0x0637,
+               0x0638, 0x0639, 0x063A, 0x0640,    178,    179,    180,    181,
+        /*E*/  0x2014, 0x0641, 0x0642, 0x0643, 0x0644, 0x0645, 0x0646, 0x0647,
+               0x0648, 0x0649, 0x064A, 0x064B, 0x064C, 0x064D, 0x064E, 0x064F,
+        /*F*/  0x0650, 0x0651, 0x0652,    185,    186,    187,    188,    189,
+               0x06C1,      2,    183, 0x200E, 0x200C, 0x06D2,     30,     31
     };
     static const int32_t CPG_720_TBL[128] = {
         /*8*/  cpNONE, cpNONE, 0x00E9, 0x00E2, cpNONE, 0x00E0, cpNONE, 0x00E7,
@@ -4360,6 +4413,13 @@ static int32_t cpgtou(cpg_t cpg, uint8_t cpt, uint8_t *xtra, const int32_t **mul
 
     static const int32_t cpmxxxxx_none[] = {cpNONE,0L};
     
+    static const int32_t cpm709_00F3[] = {0x064B,0x0651,0L};
+    static const int32_t cpm709_00F4[] = {0x064C,0x0651,0L};
+    static const int32_t cpm709_00F5[] = {0x064D,0x0651,0L};
+    static const int32_t cpm709_00F6[] = {0x064E,0x0651,0L};
+    static const int32_t cpm709_00F7[] = {0x064F,0x0651,0L};
+    static const int32_t cpm709_00F8[] = {0x0650,0x0651,0L};
+    
     static const int32_t cpm10001_87FB[] = {0x6709,0x9650,0x4F1A,0x793E,0L};
     static const int32_t cpm10001_87FC[] = {0x8CA1,0x56E3,0x6CD5,0x4EBA,0L};
     static const int32_t cpm10001_8591[] = {0x0030,0x002E,0L};
@@ -4461,7 +4521,21 @@ static int32_t cpgtou(cpg_t cpg, uint8_t cpt, uint8_t *xtra, const int32_t **mul
         case cpNONE:      r = cpUNSP;                               break;
         case CPG_437:     r = (c<128) ? c : CPG_437_TBL[c-128];     break;
         case CPG_708:     r = (c<128) ? c : CPG_708_TBL[c-128];     break;
-        case CPG_709:     r = cpUNSP;                               break;
+        case CPG_709:     
+            r = (c<128) ? c : CPG_709_TBL[c-128];
+            if (r == cpMULT) {
+                switch (cpt) {
+                    case 0xF3:    *mult = cpm709_00F3;    break;
+                    case 0xF4:    *mult = cpm709_00F4;    break;
+                    case 0xF5:    *mult = cpm709_00F5;    break;
+                    case 0xF6:    *mult = cpm709_00F6;    break;
+                    case 0xF7:    *mult = cpm709_00F7;    break;
+                    case 0xF8:    *mult = cpm709_00F8;    break;
+                    default:      *mult = cpmxxxxx_none; 
+                }
+            }
+            break;
+        case CPG_709P:    r = CPG_709P_TBL[c];                      break;
         case CPG_710:     r = cpUNSP;                               break;
         case CPG_711:     r = cpUNSP;                               break;
         case CPG_720:     r = (c<128) ? c : CPG_720_TBL[c-128];     break;
