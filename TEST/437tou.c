@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "cpgtou.h"
+#include "../cpgtou.h"
 
 void encode_utf8(int32_t c, char utf8[5]) {
     if (c < 0x80) {

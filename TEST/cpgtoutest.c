@@ -62,5 +62,8 @@ int main(void) {
 
     CHECK((char *)output, u8"忍者戦士が侍を倒す。");
 
+    printf("Converted string:   \'%s\'\n", (char *)output);
+    printf("Comparison string:  \'%s\'\n", u8"忍者戦士が侍を倒す。");
+
     return 0;
 }
