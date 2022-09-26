@@ -76,7 +76,7 @@ testsuite: testcpgtou
 
 .PHONY: testcpgtou
 testcpgtou:
-	@$(CC) $(STR_FLG) $(VSTR_FLG) $(XSTR_FLG) TEST/cpgtoutest.c -o TEST/cpgtoutest
+	@$(CC) $(STR_FLG) $(VSTR_FLG) $(XSTR_FLG) TEST/cpgtoutest.c cpgtou.c -o TEST/cpgtoutest
 	@printf "%-25s" "Testing cpgtoutest... "
 	@./TEST/cpgtoutest \
 		&& printf $(SUCC) && rm TEST/cpgtoutest || printf $(FAIL)
