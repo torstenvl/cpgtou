@@ -149,9 +149,9 @@ typedef enum cpg_t {
     CHSET_2   = 42,       // Symbol
     CHSET_77  = 10000,    // Mac Roman
     CHSET_78  = 10001,    // Mac Japan (ShiftJIS)
-    CHSET_79  = 10003,    // Mac Hangul 
-    CHSET_80  = 10008,    // Mac GB2312
-    CHSET_81  = 10002,    // Mac Big5
+    CHSET_79  = 10003,    // ❌ Mac Hangul 
+    CHSET_80  = 10008,    // ❌ Mac GB2312
+    CHSET_81  = 10002,    // ❌ Mac Big5
     CHSET_82  = cpUNSP,   // ❌❌❌ WONTFIX Old Mac Johab        
     CHSET_83  = 10005,    // Mac Hebrew
     CHSET_84  = 10004,    // Mac Arabic
@@ -161,9 +161,9 @@ typedef enum cpg_t {
     CHSET_88  = 10029,    // Mac Latin2 E. Europe
     CHSET_89  = 10007,    // Mac Cyrillic/Russian
     CHSET_128 = 932,      // DOS ShiftJIS
-    CHSET_129 = 949,      // DOS Hangul
-    CHSET_130 = 1361,     // Windows Korean (Johab)
-    CHSET_134 = 936,      // DOS Simpl. Chinese GB2312
+    CHSET_129 = 949,      // ❌ DOS Hangul
+    CHSET_130 = 1361,     // ❌ Windows Korean (Johab)
+    CHSET_134 = 936,      // ❌ DOS Simpl. Chinese GB2312
     CHSET_136 = 950,      // DOS Trad. Chinese (Big5)
     CHSET_161 = 1253,     // Windows Greek
     CHSET_162 = 1254,     // Windows Turkish
