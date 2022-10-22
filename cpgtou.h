@@ -5,8 +5,7 @@
 //
 // ---------------------------------------------------------------------------
 //
-//   Copyright (c) 2022 Joshua Lee Ockert <torstenvl@gmail.com>
-//                      https://github.com/torstenvl/
+//   Copyright (c) 2022 Joshua Lee Ockert https://github.com/torstenvl/
 //   
 //   THIS WORK IS PROVIDED "AS IS" WITH NO WARRANTY OF ANY KIND. THE IMPLIED
 //   WARRANTIES OF MERCHANTABILITY, FITNESS, NON-INFRINGEMENT, AND TITLE ARE
@@ -15,10 +14,6 @@
 //   
 //   Permission to use, copy, modify, and/or distribute this work for any
 //   purpose is hereby granted, provided this notice appears in all copies.
-//   -----------------------------------------------------------------------
-//   You may instead license this work under the MIT or Apache 2.0 licenses. 
-//   https://opensource.org/licenses/MIT https://www.apache.org/licenses/
-//   SPDX-License-Identifier: ISC OR MIT OR Apache-2.0
 //
 // ===========================================================================
 //                                                                           
@@ -71,7 +66,7 @@
 #define cpMULT   -4      // Look to last argument for a 0L-terminated list
 
 typedef enum cpg_t {
-    CPG_42    = 42,       // ❌ Windows Symbol
+    CPG_42    = 42,       // Windows Symbol
     CPG_437   = 437,      // OEM/IBM United States
     CPG_708   = 708,      // ASMO Arabic (ASMO 708)
     CPG_709   = 709,      // Arabic (ASMO 449+, BCON V4) 

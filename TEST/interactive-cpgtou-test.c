@@ -2,7 +2,7 @@
 #include <inttypes.h>
 #include <stdbool.h>
 #include <string.h>
-#include "../../STATIC/cpgtou.h"
+#include "../cpgtou.h"
 
 static void encode_utf8(int32_t c, char utf8[5]) {
     if (c < 0x80) {
