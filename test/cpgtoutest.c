@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include <string.h>
-#include "cpgtou.h"
+#include "../src/cpgtou.h"
 
 static inline unsigned char *utf8_from_cdpt(int32_t c) {
     _Thread_local static unsigned char u[5];
